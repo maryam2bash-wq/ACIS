@@ -1,0 +1,93 @@
+name: Build Windows Installer (ACIS)
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build ACIS Windows Installer (.exe)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build React frontend
+        run: pnpm --filter @workspace/acis-desktop run build
+        env:
+          NODE_ENV: production
+
+      - name: Build Express backend
+        run: pnpm --filter @workspace/api-server run build
+        env:
+          NODE_ENV: production
+
+      - name: Build Electron main process
+        run: pnpm --filter @workspace/acis-electron run build:main
+
+      - name: Copy frontend dist to Electron
+        shell: bash
+        run: |
+          mkdir -p artifacts/electron/dist-frontend
+          cp -r artifacts/acis-desktop/dist/. artifacts/electron/dist-frontend/
+
+      - name: Copy backend dist to Electron
+        shell: bash
+        run: |
+          mkdir -p artifacts/electron/dist-backend
+          cp -r artifacts/api-server/dist/. artifacts/electron/dist-backend/
+
+      - name: Package Windows installer with electron-builder
+        run: |
+          cd artifacts/electron
+          npx electron-builder --win --config.extraResources[0].filter="**/*"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows installer (.exe setup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ACIS-Windows-Installer
+          path: artifacts/electron/dist-app/*.exe
+          retention-days: 30
+
+      - name: Upload Windows portable (.exe portable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ACIS-Windows-Portable
+          path: artifacts/electron/dist-app/*Portable*.exe
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: List build artifacts
+        shell: bash
+        run: ls -lah artifacts/electron/dist-app/ || echo "No artifacts found"
