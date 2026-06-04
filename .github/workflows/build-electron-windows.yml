@@ -69,9 +69,7 @@ jobs:
       - name: Package Windows installer with electron-builder
         run: |
           cd artifacts/electron
-          npx electron-builder --win
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          npx electron-builder --win --publish never
 
       - name: Upload Windows installer (.exe setup)
         uses: actions/upload-artifact@v4
