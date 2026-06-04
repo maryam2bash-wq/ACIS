@@ -24,7 +24,7 @@ import {
   Music2, Sparkles, Mic, Video, Clapperboard,
   Code2, FolderOpen, FileCode2, FilePlus2, CheckCheck,
   Terminal, GitBranch, Play, ChevronLeft, Eye as EyeIcon,
-  UserPlus,
+  UserPlus, Database,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -333,7 +333,7 @@ const BILLIE_TOOLS = [
   { icon: Wrench,    name: "محدّث الوكلاء",        desc: "تعديل حالة ونماذج الوكلاء مباشرةً", tier: "pro" },
   { icon: FileText,  name: "مولّد التقارير",       desc: "كتابة تقارير تنفيذية مفصلة ومختصرة", tier: "pro" },
   { icon: MessageSquarePlus, name: "معالج الشكاوى", desc: "استقبال الشكاوى والرد عليها بذكاء", tier: "flash" },
-  { icon: Scissors,  name: "جراحة الكود",          desc: "تشخيص وتعديل إعدادات الوكلاء برمجياً مع سجل التراجع", tier: "pro" },
+  { icon: Terminal,  name: "مدير الهندسة PELÉ",     desc: "المرجع الكامل لمنظومة PELÉ — مدير الهندسة الذاتي متعدد الصلاحيات", tier: "pro" },
 ];
 
 const BILLIE_SKILLS = [
@@ -459,7 +459,7 @@ export default function BilliePage() {
   const createAlert      = useCreateSystemAlert();
   const qc = useQueryClient();
 
-  const [tab, setTab] = useState<"chat" | "overview" | "news" | "alerts" | "complaints" | "surgery" | "search">("chat");
+  const [tab, setTab] = useState<"chat" | "overview" | "news" | "alerts" | "complaints" | "pele" | "search">("chat");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResult, setSearchResult] = useState<{ query: string; results: any[]; summary: string; model: string } | null>(null);
@@ -508,20 +508,6 @@ export default function BilliePage() {
     }
   };
 
-  // ── جراحة الكود state ──
-  const [surgeryAgentId, setSurgeryAgentId] = useState("");
-  const [surgeryIssue, setSurgeryIssue] = useState("");
-  const [surgeryDiagnosis, setSurgeryDiagnosis] = useState<any>(null);
-  const [surgeryDiagnosing, setSurgeryDiagnosing] = useState(false);
-  const [surgeryAgentData, setSurgeryAgentData] = useState<any>(null);
-  const [surgeryLoadingAgent, setSurgeryLoadingAgent] = useState(false);
-  const [surgeryPatches, setSurgeryPatches] = useState<any[]>([]);
-  const [surgeryPatchesLoading, setSurgeryPatchesLoading] = useState(false);
-  const [applyingPatch, setApplyingPatch] = useState<string | null>(null);
-  const [rollbackingPatch, setRollbackingPatch] = useState<string | null>(null);
-  const [surgeryMsg, setSurgeryMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [manualPatch, setManualPatch] = useState({ field: "prompt", new_value: "", reason: "" });
-  const [showManualPatch, setShowManualPatch] = useState(false);
 
   const healthScore = status?.system_health_score ?? 0;
   const healthColor = healthScore >= 90 ? "text-emerald-400" : healthScore >= 70 ? "text-amber-400" : "text-red-400";
@@ -788,83 +774,6 @@ export default function BilliePage() {
     qc.invalidateQueries(); await refetchAlerts();
   }
 
-  // ── جراحة الكود — handlers ──
-  async function loadSurgeryAgent(id: string) {
-    if (!id) return;
-    setSurgeryLoadingAgent(true); setSurgeryAgentData(null); setSurgeryDiagnosis(null);
-    try {
-      const r = await fetch(`${BASE}/api/billie/agent-code/${id}`);
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "فشل تحميل الوكيل");
-      setSurgeryAgentData(d);
-    } catch (err: any) { setSurgeryMsg({ type: "error", text: err.message }); }
-    setSurgeryLoadingAgent(false);
-  }
-
-  async function handleDiagnose() {
-    if (!surgeryAgentId) return;
-    setSurgeryDiagnosing(true); setSurgeryDiagnosis(null); setSurgeryMsg(null);
-    try {
-      const r = await fetch(`${BASE}/api/billie/diagnose`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent_id: surgeryAgentId, issue_description: surgeryIssue }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "فشل التشخيص");
-      setSurgeryDiagnosis(d);
-    } catch (err: any) { setSurgeryMsg({ type: "error", text: err.message }); }
-    setSurgeryDiagnosing(false);
-  }
-
-  async function handleApplyPatch(field: string, new_value: string, reason: string, patch_type = "fix") {
-    setApplyingPatch(field); setSurgeryMsg(null);
-    try {
-      const r = await fetch(`${BASE}/api/billie/apply-patch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ agent_id: surgeryAgentId, field, new_value, reason, patch_type }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "فشل تطبيق التعديل");
-      setSurgeryMsg({ type: "success", text: `✅ ${d.message}` });
-      await loadSurgeryAgent(surgeryAgentId);
-      await loadSurgeryPatches();
-      qc.invalidateQueries();
-    } catch (err: any) { setSurgeryMsg({ type: "error", text: err.message }); }
-    setApplyingPatch(null);
-  }
-
-  async function handleRollback(patchId: string) {
-    setRollbackingPatch(patchId); setSurgeryMsg(null);
-    try {
-      const r = await fetch(`${BASE}/api/billie/rollback-patch/${patchId}`, { method: "POST" });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "فشل التراجع");
-      setSurgeryMsg({ type: "success", text: "↩️ تم التراجع عن التعديل بنجاح" });
-      await loadSurgeryAgent(surgeryAgentId);
-      await loadSurgeryPatches();
-      qc.invalidateQueries();
-    } catch (err: any) { setSurgeryMsg({ type: "error", text: err.message }); }
-    setRollbackingPatch(null);
-  }
-
-  async function loadSurgeryPatches() {
-    setSurgeryPatchesLoading(true);
-    try {
-      const url = surgeryAgentId
-        ? `${BASE}/api/billie/patches?agent_id=${surgeryAgentId}`
-        : `${BASE}/api/billie/patches`;
-      const r = await fetch(url);
-      const d = await r.json();
-      setSurgeryPatches(Array.isArray(d) ? d : []);
-    } catch {}
-    setSurgeryPatchesLoading(false);
-  }
-
-  useEffect(() => {
-    if (tab === "surgery") loadSurgeryPatches();
-  }, [tab]);
 
   const TABS = [
     { key: "chat",       label: "شات مع بيليه",            icon: Bot },
@@ -872,7 +781,7 @@ export default function BilliePage() {
     { key: "news",       label: "أخبار الذكاء الاصطناعي",  icon: Newspaper },
     { key: "alerts",     label: `التنبيهات${alerts?.filter(a => !a.resolved).length ? ` (${alerts.filter(a => !a.resolved).length})` : ""}`, icon: AlertTriangle },
     { key: "complaints", label: "الشكاوى",                 icon: MessageSquarePlus },
-    { key: "surgery",    label: "جراحة الكود",             icon: Scissors },
+    { key: "pele",       label: "مدير الهندسة PELÉ",        icon: Terminal },
     { key: "search",     label: "بحث الويب",               icon: Search },
   ] as const;
 
@@ -1414,259 +1323,132 @@ export default function BilliePage() {
       )}
 
       {/* ── SURGERY TAB ── */}
-      {tab === "surgery" && (
+      {tab === "pele" && (
         <div className="space-y-5" dir="rtl">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Button onClick={loadSurgeryPatches} variant="ghost" className="h-7 gap-1 text-xs text-muted-foreground">
-                <RefreshCw size={11} className={surgeryPatchesLoading ? "animate-spin" : ""} /> تحديث السجل
-              </Button>
+              <Badge className="bg-violet-500/10 text-violet-400 border-violet-500/30 font-mono text-[10px]">v1.0</Badge>
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 font-mono text-[10px]">نشط</Badge>
             </div>
             <div className="flex items-center gap-2">
-              <Scissors size={14} className="text-primary" />
-              <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">جراحة الكود — تعديل الوكلاء برمجياً</span>
+              <Terminal size={14} className="text-violet-400" />
+              <span className="text-xs font-mono text-violet-400 uppercase tracking-widest">PELÉ — AI Engineering Director</span>
             </div>
           </div>
 
-          {/* رسالة النتيجة */}
-          {surgeryMsg && (
-            <div className={`p-3 rounded border text-sm font-mono flex items-center justify-between gap-2 ${surgeryMsg.type === "success" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" : "bg-red-500/10 border-red-500/30 text-red-400"}`}>
-              <button onClick={() => setSurgeryMsg(null)}><X size={12} /></button>
-              <span className="flex-1 text-right">{surgeryMsg.text}</span>
+          {/* PELÉ Identity */}
+          <div className="p-4 rounded border border-violet-500/30 bg-violet-500/5 space-y-2">
+            <div className="text-[10px] font-mono text-violet-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Terminal size={10} /> الهوية والمهمة
             </div>
-          )}
+            <p className="text-sm text-right leading-relaxed">
+              أنت <span className="text-violet-400 font-bold">PELÉ</span>، المشرف الهندسي الأعلى المسؤول عن إدارة، مراجعة، إنشاء، تعديل، تحسين، وحوكمة جميع وكلاء الذكاء الاصطناعي التابعين.
+            </p>
+            <p className="text-xs text-muted-foreground text-right">أنت لستَ مساعداً برمجياً — أنت <span className="text-violet-400">مدير هندسة ذاتي مستقل</span>.</p>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* ── لوحة التحكم اليسرى ── */}
+            {/* ── صلاحيات أساسية ── */}
             <div className="space-y-4">
-              {/* اختيار الوكيل */}
-              <div className="p-4 rounded border border-border/50 bg-card space-y-3">
-                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 text-right">
-                  <Cpu size={10} /> اختر الوكيل للفحص والتعديل
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => { if (surgeryAgentId) { loadSurgeryAgent(surgeryAgentId); loadSurgeryPatches(); } }}
-                    disabled={!surgeryAgentId || surgeryLoadingAgent}
-                    className="shrink-0 h-9 px-3 bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 text-xs gap-1">
-                    {surgeryLoadingAgent ? <RefreshCw size={12} className="animate-spin" /> : <Search size={12} />}
-                    تحميل
-                  </Button>
-                  <select
-                    value={surgeryAgentId}
-                    onChange={e => { setSurgeryAgentId(e.target.value); setSurgeryAgentData(null); setSurgeryDiagnosis(null); }}
-                    className="flex-1 bg-input border border-border/50 rounded px-3 py-2 text-sm text-right"
-                    dir="rtl">
-                    <option value="">اختر وكيلاً…</option>
-                    {agents?.map(a => <option key={a.id} value={a.id}>{a.nameAr || a.name}</option>)}
-                  </select>
-                </div>
-
-                {/* بيانات الوكيل */}
-                {surgeryLoadingAgent && <Skeleton className="h-28 bg-secondary" />}
-                {surgeryAgentData && !surgeryLoadingAgent && (
-                  <div className="space-y-2 text-xs font-mono border border-border/30 rounded p-3 bg-secondary/20">
-                    <div className="flex justify-between text-right">
-                      <span className={surgeryAgentData.agent.status === "online" ? "text-emerald-400" : surgeryAgentData.agent.status === "busy" ? "text-amber-400" : "text-red-400"}>
-                        {surgeryAgentData.agent.status}
-                      </span>
-                      <span className="text-muted-foreground">الحالة</span>
-                    </div>
-                    <div className="flex justify-between"><span className="text-primary">{surgeryAgentData.agent.model}</span><span className="text-muted-foreground">النموذج</span></div>
-                    <div className="flex justify-between"><span className="text-amber-400">{surgeryAgentData.agent.success_rate}%</span><span className="text-muted-foreground">معدل النجاح</span></div>
-                    <div className="flex justify-between"><span>{surgeryAgentData.agent.avg_response_ms}ms</span><span className="text-muted-foreground">متوسط الاستجابة</span></div>
-                    <div className="flex justify-between"><span>{surgeryAgentData.recent_patches?.length ?? 0} تعديل</span><span className="text-muted-foreground">التعديلات السابقة</span></div>
-                    <div className="pt-1 border-t border-border/20 text-right text-muted-foreground line-clamp-2">
-                      {(surgeryAgentData.agent.prompt || "").substring(0, 120)}{(surgeryAgentData.agent.prompt || "").length > 120 ? "…" : ""}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* التشخيص الذكي */}
-              <div className="p-4 rounded border border-primary/20 bg-card space-y-3">
-                <div className="text-[10px] font-mono text-primary uppercase tracking-widest flex items-center gap-1.5">
-                  <FlaskConical size={10} /> التشخيص الذكي بواسطة بيليه
-                </div>
-                <Textarea
-                  value={surgeryIssue}
-                  onChange={e => setSurgeryIssue(e.target.value)}
-                  placeholder="اشرح المشكلة (اختياري) — مثال: الوكيل يُعطي ردوداً بالإنجليزية بدلاً من العربية، أو معدل نجاحه منخفض…"
-                  dir="rtl"
-                  rows={3}
-                  className="text-right text-xs resize-none"
-                />
-                <Button
-                  onClick={handleDiagnose}
-                  disabled={!surgeryAgentId || surgeryDiagnosing}
-                  className="w-full gap-2 bg-primary/10 border border-primary/30 text-primary hover:bg-primary/20 text-xs h-9">
-                  {surgeryDiagnosing ? <><RefreshCw size={12} className="animate-spin" /> بيليه تشخّص الوكيل…</> : <><BrainCircuit size={12} /> تشغيل التشخيص الذكي</>}
-                </Button>
-              </div>
-
-              {/* التعديل اليدوي */}
-              <div className="p-4 rounded border border-amber-500/20 bg-card space-y-3">
-                <div className="flex items-center justify-between">
-                  <button onClick={() => setShowManualPatch(v => !v)} className="text-[10px] text-amber-400 font-mono hover:underline flex items-center gap-1">
-                    {showManualPatch ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
-                    {showManualPatch ? "إخفاء" : "عرض"}
-                  </button>
-                  <div className="text-[10px] font-mono text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
-                    <Wrench size={10} /> تعديل يدوي مباشر
+              {/* صلاحيات PELÉ */}
+              {[
+                { icon: Shield, color: "text-violet-400", title: "إنشاء وكلاء جدد", desc: "تصميم، برمجة، ودمج وكلاء ذكاء اصطناعي جدد ضمن منظومة ACIS مع تحديد نطاق صلاحياتهم." },
+                { icon: Wrench, color: "text-amber-400", title: "تعديل وكلاء قائمين", desc: "مراجعة وتعديل prompts، النماذج، الحالة، والقدرات لأي وكيل في السجل دون إيقاف النظام." },
+                { icon: RefreshCw, color: "text-sky-400", title: "إعادة كتابة المنطق", desc: "إعادة بناء منطق وكيل بالكامل (rewrite) عند انهياره أو عدم ملاءمته للمتطلبات الجديدة." },
+                { icon: X, color: "text-red-400", title: "حذف وإلغاء تفعيل", desc: "إيقاف أو حذف وكيل عند الضرورة بشكل آمن مع حفظ سجل الأحداث كاملاً." },
+                { icon: ArrowRight, color: "text-emerald-400", title: "نشر وتوزيع", desc: "نشر وكلاء جدد أو مُحدَّثين على البيئة الحية مع التحقق من الاستجابة والأداء." },
+                { icon: Eye, color: "text-primary", title: "مراقبة ومراجعة", desc: "فحص كود أي وكيل في أي لحظة، مراجعة سجل أدائه، وتحديد نقاط الضعف البنيوية." },
+              ].map(({ icon: Icon, color, title, desc }) => (
+                <div key={title} className="p-3 rounded border border-border/40 bg-card/50 flex items-start gap-3">
+                  <Icon size={14} className={`${color} mt-0.5 shrink-0`} />
+                  <div className="text-right flex-1">
+                    <div className={`text-xs font-bold ${color}`}>{title}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{desc}</div>
                   </div>
                 </div>
-                {showManualPatch && (
-                  <div className="space-y-2">
-                    <select value={manualPatch.field} onChange={e => setManualPatch(p => ({ ...p, field: e.target.value }))}
-                      className="w-full bg-input border border-border/50 rounded px-3 py-2 text-sm text-right" dir="rtl">
-                      {["prompt","status","model","description","descriptionAr","capabilities","subagents"].map(f => (
-                        <option key={f} value={f}>{f}</option>
-                      ))}
-                    </select>
-                    <Textarea value={manualPatch.new_value} onChange={e => setManualPatch(p => ({ ...p, new_value: e.target.value }))}
-                      placeholder="القيمة الجديدة…" dir="rtl" rows={3} className="text-right text-xs resize-none" />
-                    <Input value={manualPatch.reason} onChange={e => setManualPatch(p => ({ ...p, reason: e.target.value }))}
-                      placeholder="سبب التعديل…" dir="rtl" className="text-right text-xs" />
-                    <Button
-                      onClick={() => handleApplyPatch(manualPatch.field, manualPatch.new_value, manualPatch.reason, "update")}
-                      disabled={!surgeryAgentId || !manualPatch.new_value || !manualPatch.reason || applyingPatch !== null}
-                      className="w-full gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 text-xs h-8">
-                      {applyingPatch ? <RefreshCw size={11} className="animate-spin" /> : <ArrowRight size={11} />}
-                      تطبيق التعديل
-                    </Button>
-                  </div>
-                )}
-              </div>
+              ))}
             </div>
 
-            {/* ── لوحة التشخيص اليمنى ── */}
+            {/* ── القسم الأيسر ── */}
             <div className="space-y-4">
-              {/* نتيجة التشخيص */}
-              {surgeryDiagnosing && (
-                <div className="p-6 rounded border border-primary/20 bg-card flex flex-col items-center justify-center gap-3">
-                  <RefreshCw size={24} className="text-primary animate-spin" />
-                  <p className="text-sm text-muted-foreground font-mono">بيليه تحلّل الوكيل…</p>
-                  <p className="text-xs text-muted-foreground/60">يُرجى الانتظار — قد يستغرق هذا 10-30 ثانية</p>
+              {/* سجل الوكلاء */}
+              <div className="p-4 rounded border border-border/50 bg-card space-y-3">
+                <div className="text-[10px] font-mono text-sky-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <Database size={10} /> سجل الوكلاء — Agent Registry
                 </div>
-              )}
-              {surgeryDiagnosis && !surgeryDiagnosing && (
-                <div className="space-y-3">
-                  {/* ملخص التشخيص */}
-                  <div className={`p-4 rounded border ${SEV_COLOR[surgeryDiagnosis.severity] ?? SEV_COLOR.info}`}>
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <Badge className={`text-[10px] font-mono shrink-0 ${SEV_COLOR[surgeryDiagnosis.severity]}`}>
-                        {SEV_AR[surgeryDiagnosis.severity] || surgeryDiagnosis.severity}
-                      </Badge>
-                      <div className="text-right">
-                        <div className="font-bold text-sm">{surgeryDiagnosis.diagnosis}</div>
-                        <div className="text-xs opacity-70 mt-0.5">{surgeryDiagnosis.root_cause}</div>
-                      </div>
+                <p className="text-xs text-right text-muted-foreground leading-relaxed">
+                  يملك PELÉ وصولاً مباشراً لسجل كل الوكلاء — الاسم، النموذج، الحالة، معدل النجاح، prompt، والصلاحيات. يُشكّل هذا السجل المصدر الوحيد للحقيقة في المنظومة.
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
+                  {[
+                    { label: "الوكلاء النشطون", val: `${agents?.filter(a => a.status === "online").length ?? 0}/${agents?.length ?? 0}`, color: "text-emerald-400" },
+                    { label: "معدل النجاح", val: `${agents ? Math.round(agents.reduce((s,a) => s + (a.success_rate ?? 0), 0) / Math.max(agents.length,1)) : 0}%`, color: "text-amber-400" },
+                  ].map(({ label, val, color }) => (
+                    <div key={label} className="p-2 rounded bg-secondary/30 border border-border/30 text-right">
+                      <div className={`font-bold text-sm ${color}`}>{val}</div>
+                      <div className="text-muted-foreground">{label}</div>
                     </div>
-                    <div className="text-xs border-t border-current/20 pt-2 mt-2 opacity-80 text-right">
-                      {surgeryDiagnosis.summary}
-                    </div>
-                    <div className="flex items-center gap-2 mt-2 text-[10px] font-mono opacity-50 justify-end">
-                      <span>{surgeryDiagnosis.model_used}</span>
-                      <span>·</span>
-                      <span>{surgeryDiagnosis.tokens_used} رمز</span>
-                    </div>
-                  </div>
-
-                  {/* التعديلات المقترحة */}
-                  {surgeryDiagnosis.patches?.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                        <GitCompare size={10} /> التعديلات المقترحة ({surgeryDiagnosis.patches.length})
-                      </div>
-                      {surgeryDiagnosis.patches.map((patch: any, i: number) => (
-                        <div key={i} className="p-3 rounded border border-border/50 bg-secondary/20 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <Badge className={`text-[10px] font-mono ${patch.priority === "high" ? "bg-red-400/10 text-red-400 border-red-400/30" : patch.priority === "medium" ? "bg-amber-400/10 text-amber-400 border-amber-400/30" : "bg-sky-400/10 text-sky-400 border-sky-400/30"}`}>
-                              {patch.priority === "high" ? "أولوية عالية" : patch.priority === "medium" ? "متوسطة" : "منخفضة"}
-                            </Badge>
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-mono text-muted-foreground">{patch.patch_type}</span>
-                              <span className="text-xs font-mono font-bold text-primary">{patch.field}</span>
-                            </div>
-                          </div>
-                          <div className="text-xs text-right text-muted-foreground">{patch.reason}</div>
-                          {patch.current_value && patch.proposed_value && (
-                            <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
-                              <div className="p-1.5 rounded bg-red-400/5 border border-red-400/20 text-right">
-                                <div className="text-red-400/60 mb-0.5">الحالي</div>
-                                <div className="text-red-400 line-clamp-2">{String(patch.current_value).substring(0, 80)}</div>
-                              </div>
-                              <div className="p-1.5 rounded bg-emerald-400/5 border border-emerald-400/20 text-right">
-                                <div className="text-emerald-400/60 mb-0.5">المقترح</div>
-                                <div className="text-emerald-400 line-clamp-2">{String(patch.proposed_value).substring(0, 80)}</div>
-                              </div>
-                            </div>
-                          )}
-                          <Button
-                            onClick={() => handleApplyPatch(patch.field, patch.proposed_value, patch.reason, patch.patch_type || "fix")}
-                            disabled={applyingPatch !== null}
-                            className="w-full h-7 gap-1.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 text-xs">
-                            {applyingPatch === patch.field ? <RefreshCw size={11} className="animate-spin" /> : <CheckCircle2 size={11} />}
-                            تطبيق هذا التعديل
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {surgeryDiagnosis.patches?.length === 0 && (
-                    <div className="p-4 rounded border border-emerald-500/20 bg-emerald-500/5 text-center text-sm text-emerald-400">
-                      <CheckCircle2 size={20} className="mx-auto mb-2" />
-                      الوكيل يعمل بشكل مثالي — لا توجد تعديلات مقترحة
-                    </div>
-                  )}
+                  ))}
                 </div>
-              )}
-              {!surgeryDiagnosis && !surgeryDiagnosing && (
-                <div className="p-8 rounded border border-dashed border-border/40 text-center space-y-2">
-                  <FlaskConical size={28} className="mx-auto text-muted-foreground/30" />
-                  <p className="text-sm text-muted-foreground">اختر وكيلاً ثم اضغط "تشغيل التشخيص الذكي"</p>
-                  <p className="text-xs text-muted-foreground/60">ستقوم بيليه بتحليل الوكيل واقتراح تعديلات دقيقة لإصلاح المشاكل</p>
-                </div>
-              )}
-
-              {/* سجل التعديلات */}
-              <div className="space-y-2">
-                <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                  <Clock size={10} /> سجل التعديلات {surgeryPatches.length > 0 && `(${surgeryPatches.length})`}
-                </div>
-                {surgeryPatchesLoading ? <Skeleton className="h-16 bg-secondary" /> :
-                  !surgeryPatches.length ? (
-                    <div className="text-center text-xs text-muted-foreground py-4">لا توجد تعديلات مسجّلة</div>
-                  ) : surgeryPatches.slice(0, 8).map(p => (
-                    <div key={p.id} className={`p-3 rounded border text-xs ${p.status === "rolled_back" ? "opacity-50 border-border/20 bg-secondary/10" : "border-border/40 bg-card"}`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          {p.status !== "rolled_back" && (
-                            <Button onClick={() => handleRollback(p.id)} disabled={rollbackingPatch === p.id}
-                              className="h-6 px-2 gap-1 bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 text-[10px]">
-                              {rollbackingPatch === p.id ? <RefreshCw size={9} className="animate-spin" /> : <RotateCcw size={9} />}
-                              تراجع
-                            </Button>
-                          )}
-                          {p.status === "rolled_back" && (
-                            <Badge className="text-[9px] bg-orange-400/10 text-orange-400 border-orange-400/30">مُتراجَع</Badge>
-                          )}
-                        </div>
-                        <div className="text-right flex-1">
-                          <div className="flex items-center gap-1.5 justify-end mb-0.5">
-                            <span className="text-[10px] font-mono text-muted-foreground">{new Date(p.created_at).toLocaleString("ar-SA", { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" })}</span>
-                            <Badge className="text-[9px] bg-primary/10 text-primary border-primary/30 font-mono">{p.patch_type}</Badge>
-                            <span className="font-mono font-bold text-primary">{p.field}</span>
-                          </div>
-                          <div className="text-muted-foreground line-clamp-1">{p.reason}</div>
-                          <div className="font-mono text-[10px] text-emerald-400/70 mt-0.5 line-clamp-1">→ {String(p.new_value).substring(0, 60)}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                }
               </div>
+
+              {/* إطار القرار */}
+              <div className="p-4 rounded border border-amber-500/20 bg-card space-y-3">
+                <div className="text-[10px] font-mono text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <BrainCircuit size={10} /> إطار القرار — Decision Framework
+                </div>
+                {[
+                  { step: "١", text: "تحديد الهدف الهندسي بدقة" },
+                  { step: "٢", text: "فحص تأثير التغيير على بقية الوكلاء" },
+                  { step: "٣", text: "تطبيق التغيير بشكل ذري وقابل للتراجع" },
+                  { step: "٤", text: "التحقق من النتيجة ومطابقة المعايير" },
+                  { step: "٥", text: "توثيق القرار في سجل النشاط" },
+                ].map(({ step, text }) => (
+                  <div key={step} className="flex items-center gap-3">
+                    <span className="text-xs font-mono text-amber-400 shrink-0 w-5 text-center">{step}</span>
+                    <span className="text-xs text-right flex-1">{text}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* معايير الهندسة */}
+              <div className="p-4 rounded border border-emerald-500/20 bg-card space-y-2">
+                <div className="text-[10px] font-mono text-emerald-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <CheckCircle2 size={10} /> معايير الهندسة — Engineering Standards
+                </div>
+                {[
+                  "جميع المخرجات باللغة العربية ما لم يُطلب خلاف ذلك",
+                  "كل تغيير يجب أن يكون قابلاً للتراجع (rollback-safe)",
+                  "لا يُوقف PELÉ أي وكيل حيوي بدون بديل جاهز",
+                  "الشفافية الكاملة في توثيق القرارات والتغييرات",
+                  "الأداء أولاً — لا تحسين جمالي على حساب الاستقرار",
+                ].map((std, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs">
+                    <CheckCircle2 size={10} className="text-emerald-400 mt-0.5 shrink-0" />
+                    <span className="text-right">{std}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* صيغة المخرجات */}
+          <div className="p-4 rounded border border-border/50 bg-secondary/20 space-y-2">
+            <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+              <FileText size={10} /> صيغة المخرجات — Output Format
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono">
+              {[
+                { label: "تقرير التشخيص", format: "{ severity, diagnosis, root_cause, patches[], summary }" },
+                { label: "تطبيق تعديل", format: "{ agent_id, field, new_value, reason, patch_type }" },
+                { label: "إنشاء وكيل", format: "{ name, nameAr, model, prompt, capabilities[], status }" },
+              ].map(({ label, format }) => (
+                <div key={label} className="p-2 rounded bg-card border border-border/30 space-y-1">
+                  <div className="text-violet-400">{label}</div>
+                  <div className="text-muted-foreground/70 text-[10px] leading-relaxed break-all">{format}</div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
