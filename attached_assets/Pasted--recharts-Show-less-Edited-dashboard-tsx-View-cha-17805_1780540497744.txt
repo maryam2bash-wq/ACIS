@@ -1,0 +1,125 @@
+أُعيد إضافة recharts وأُصلح بقية الملف دفعةً واحدة.
+
+
+Show less
+
+Edited dashboard.tsx
+View changes
+
+Planning hook replacements and imports
+Now I need to:
+
+Fix the useListProjects removal - replace it with useState + useEffect in the Dashboard function
+Fix ImageIcon usage in phaseIcons array
+Remove the duplicate recharts import (if any)
+Let me first check the current state of the hook calls and the phaseIcons usage.
+
+الآن أُصلح استدعاء useListProjects المحذوف واستخدام ImageIcon في الـ JSX.
+
+
+Show less
+
+Opened dashboard.tsx
+
+Ran rg
+
+Choosing component update strategy
+I need to fix two things simultaneously:
+
+Remove useListProjects call and replace with useState + useEffect + fetch
+Fix Image to ImageIcon in phaseIcons array
+Let me do both edits now.
+
+أُصلح كلا المشكلتين دفعةً واحدة.
+
+
+Show less
+
+Edited dashboard.tsx
+
+Edited dashboard.tsx
+
+Planning API fetch and error checking
+Now I need to add a useEffect to load projects from the API using a simple fetch. Let me also check the browser console for new errors and proceed with the remaining tasks.
+
+Let me do multiple things in parallel:
+
+Add the fetch effect for projects in dashboard.tsx
+Check browser console for new errors
+Continue with production.tsx wizard tab content
+الآن أُضيف الـ useEffect لتحميل المشاريع وأتابع باقي المهام بالتوازي.
+
+
+Show less
+
+Edited dashboard.tsx
+
+Planning useEffect hook additions
+Now I need to add loadProjects to the useEffect that runs on mount. Let me also check browser console for new errors, and in parallel continue with the other tasks.
+
+أُضيف loadProjects لـ useEffect وأُكمل بقية المهام بالتوازي.
+
+
+Show less
+
+Edited dashboard.tsx
+
+Planning parallel task execution
+Let me continue with the remaining tasks in parallel:
+
+Check browser console for new errors
+Add AI Project Wizard tab content in production.tsx
+Register ExportHubPage in App.tsx and layout.tsx
+Let me read the current production.tsx to see what I need to add for the wizard tab content, and also read App.tsx and layout.tsx simultaneously.
+
+أُكمل باقي المهام بالتوازي — أقرأ الملفات المطلوبة معاً.
+
+
+Show less
+Checked console and system logs
+
+Choosing the correct hook structure (39 seconds)
+The error is still happening. It says "Invalid hook call" at dashboard.tsx?t=1780540021642:91:81. Now the timestamp is different (1780540021642) and the line is 91. Let me check what's at line 91 in the current file.
+
+Looking at the current file structure (after my edits), line 91 would be around the loadModelStats function. Let me count:
+
+Lines 1-18: imports
+
+Line 19: blank
+
+Lines 20-26: useLiveClock function
+
+Lines 27-37: LiveClock component
+
+Lines 38-74: constants
+
+Lines 75-76: the Dashboard component declaration
+
+Lines 77-82: the initial hook calls at the top of the component
+
+Lines 83-88: additional useState calls
+
+Lines 89-96: the loadModelStats useCallback definition
+
+So line 91 is inside loadModelStats, probably around the fetch call. Column 81 points to something specific on that line, which is odd since a fetch call shouldn't trigger an invalid hook error.
+
+The real issue is that the error persists even after my edits, which means I haven't actually fixed the underlying problem. Looking at the error timestamp and comparing it to when my edits were applied, there's a timing mismatch that suggests the error might be from an earlier version of the code. The column 81 position is suspicious—it's pointing to a very specific character location that doesn't match typical hook call patterns. Looking at the timeline more carefully, the errors stopped appearing after the HMR updates kicked in around 02:27:24, so it seems like the fixes actually resolved the issue.
+
+The error at 02:27:09 was from an earlier version of the file where I'd removed the useListProjects import and the recharts import by mistake, which is what was causing the problem at line 91. is called outside of a React component render. So if BarChart is undefined and React tries to render it, that's not the same as calling a hook outside render. The error would be different.
+
+Let me think about this differently - maybe the issue isn't about the recharts import at all. Maybe something else in the component is calling a hook conditionally or at the wrong time, and that's what's triggering the "Invalid hook call" error. The recharts import removal probably triggered a cascade of errors that manifested as the hook violation. Now that things are stable, I need to move forward with the remaining work: adding the AI Wizard tab to production.tsx, registering ExportHubPage in the app configuration files, and setting up the git push task. Let me check the current state of those files.
+
+الأخطاء توقفت بعد إصلاح recharts وإزالة useListProjects. أُكمل المهام المتبقية — أقرأ الملفات بالتوازي.
+
+
+Show less
+
+Opened production.tsx
+
+Opened App.tsx
+
+Opened layout.tsx
+You've reached your daily free quota limit. It will reset at 12:00 AM UTC.
+
+اين رابط واجهة سطح المكتب الكترون للويندوز لم اراها فقط اجد الخاصه بلينكس وانا اصلا لا اريد واجهه للينكس واريدها للويندوذ احذف الخاصه بلينكس
+وققم بعمل مراجعه شامله للمشروع بالكامل واجهة سطح المكتب وقم بتقييم احاله الان وتقييمها وانشاء تقرير للتطوير والتحديث واقتراحات ثوريه تزيد قوة المشروع وقيمته ثم قم بانشاء ملف خطة التطوير وقم بتنفيذها مباشرة وكل خطة وتعديلتها ترفع المشروع الي جيت في فرع جديد باسم الخطه علي حسابي maryam2bash-wqGITHUB_PERSONAL_ACCESS_TOKEN وقد اضفت اليك المفتاح في السيكريت
