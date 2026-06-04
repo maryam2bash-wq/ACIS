@@ -2,7 +2,11 @@
   "name": "@workspace/acis-electron",
   "version": "3.0.0",
   "description": "ACIS — نظام التكامل السينمائي بالذكاء الاصطناعي",
-  "homepage": "https://github.com/acis/cinematic-ai",
+  "homepage": "https://github.com/maryam2bash-wq/ACIS",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maryam2bash-wq/ACIS.git"
+  },
   "author": {
     "name": "ACIS Team",
     "email": "acis@example.com"
