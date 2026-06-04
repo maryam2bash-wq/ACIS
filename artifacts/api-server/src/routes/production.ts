@@ -767,4 +767,27 @@ router.get("/projects/:projectId/export/json", async (req, res) => {
   });
 });
 
+
+// ── Enhance Story (Smart Story Enhancer) ─────────────────────────────────────
+router.post("/enhance-story", async (req, res) => {
+  const { story_prompt, type, language } = req.body;
+  if (!story_prompt || story_prompt.trim().length < 10) {
+    return res.status(400).json({ error: "القصة قصيرة جداً — اكتب على الأقل 10 أحرف" });
+  }
+
+  const typeAr: Record<string, string> = {
+    short: "فيلم قصير", medium: "فيلم متوسط", feature: "فيلم طويل",
+    documentary: "وثائقي", commercial: "إعلان", animation: "رسوم متحركة",
+  };
+
+  const prompt = `أنت مستشار سينمائي خبير. المستخدم كتب هذه الفكرة للفيلم:\n\n"${story_prompt}"\n\nالنوع: ${typeAr[type] || type} | اللغة: ${language === "ar" ? "عربية" : language === "en" ? "إنجليزية" : "ثنائية"}\n\nحسِّن هذه القصة بشكل احترافي:\n1. أضف عمقاً للشخصيات الرئيسية (اسم، دوافع، صراع داخلي)\n2. اجعل الصراع الرئيسي أوضح وأشد تأثيراً\n3. أضف عنصر مفاجأة أو منعطف درامي\n4. حدد الموقع والزمن والأجواء البصرية\n5. اختم بنبرة سينمائية قوية\n\nاكتب القصة المحسَّنة مباشرةً في فقرتين أو ثلاث (بدون ترقيم أو عناوين)، بنفس لغة القصة الأصلية.`;
+
+  try {
+    const result = await callAIForTask("text_simple", "أنت مستشار سينمائي خبير متخصص في تحسين القصص.", prompt);
+    res.json({ enhanced: result.text.trim() });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "فشل تحسين القصة" });
+  }
+});
+
 export default router;
